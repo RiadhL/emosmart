@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "455698631576",
+    "firebase_url": "https://emosmart-58a54-default-rtdb.firebaseio.com",
+    "project_id": "emosmart-58a54",
+    "storage_bucket": "emosmart-58a54.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:455698631576:android:fd78d14d64ae66ed7679ed",
+        "android_client_info": {
+          "package_name": "com.emosmart.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCLoa8Jv61aFb9SaV7hZbGkoBjyKVyZNyI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

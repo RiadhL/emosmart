@@ -1,0 +1,45 @@
+name: emosmart
+description: "EmoSmart - Emotion learning app for autistic children"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Firebase
+  firebase_core: ^3.13.0
+  firebase_auth: ^5.5.2
+  firebase_database: ^11.3.4
+
+  # Camera
+  camera: ^0.11.1
+
+  # Charts
+  fl_chart: ^0.70.2
+
+  # Audio
+  audioplayers: ^6.4.0
+
+  # Animations
+  lottie: ^3.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/animations/
+    - assets/images/
+    - assets/audio/
+    - assets/sounds/
