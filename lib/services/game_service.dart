@@ -35,15 +35,21 @@ class GameService {
   // ── Persistence ────────────────────────────────────────────────────────────
 
   Future<void> saveResult(String uid, GameResult result) async {
-    final ref = _db.child('game_results/$uid/${result.gameId}').push();
-    await ref.set(result.toMap());
+    final sessionId = DateTime.now().millisecondsSinceEpoch.toString();
+    await _db.child('users/$uid/sessions/${result.gameId}/$sessionId').set({
+      'score':       result.score,
+      'errors':      result.errors,
+      'duration':    result.timeTaken.inSeconds,
+      'level':       result.level,
+      'timestamp':   result.completedAt.millisecondsSinceEpoch,
+      'totalRounds': result.maxScore,
+    });
 
     // Unlock next level if stars earned
     if (result.starsEarned > 0) {
       await _db
           .child('user_levels/$uid/${result.gameId}/${result.level}')
           .update({'stars': result.starsEarned, 'unlocked': true});
-      // Unlock next level
       await _db
           .child('user_levels/$uid/${result.gameId}/${result.level + 1}')
           .update({'unlocked': true});
@@ -51,13 +57,27 @@ class GameService {
   }
 
   Future<List<GameResult>> getResultsForGame(String uid, String gameId) async {
-    final snap = await _db.child('game_results/$uid/$gameId').get();
+    final snap = await _db.child('users/$uid/sessions/$gameId').get();
     if (!snap.exists) return [];
     final data = snap.value as Map;
-    return data.entries
-        .map((e) => GameResult.fromMap(e.value as Map))
-        .toList()
-      ..sort((a, b) => b.completedAt.compareTo(a.completedAt));
+    final results = data.entries.map((e) {
+      final s = Map<String, dynamic>.from(e.value as Map);
+      return GameResult(
+        gameId:      gameId,
+        level:       (s['level']       as num?)?.toInt() ?? 1,
+        score:       (s['score']       as num?)?.toInt() ?? 0,
+        maxScore:    (s['totalRounds'] as num?)?.toInt() ?? 12,
+        errors:      (s['errors']      as num?)?.toInt() ?? 0,
+        starsEarned: starsForScore(
+            ((s['score'] as num?)?.toInt() ?? 0) /
+            ((s['totalRounds'] as num?)?.toInt() ?? 12)),
+        timeTaken:   Duration(seconds: (s['duration']  as num?)?.toInt() ?? 0),
+        completedAt: DateTime.fromMillisecondsSinceEpoch(
+            (s['timestamp'] as num?)?.toInt() ?? 0),
+      );
+    }).toList();
+    results.sort((a, b) => b.completedAt.compareTo(a.completedAt));
+    return results;
   }
 
   Future<List<GameResult>> getAllRecentResults(String uid, {int limit = 5}) async {

@@ -1,5 +1,8 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_theme.dart';
+import '../../../widgets/animated_entrance.dart';
 import 'pattern_fun_game.dart';
 
 class PatternFunLevelSelect extends StatelessWidget {
@@ -9,101 +12,160 @@ class PatternFunLevelSelect extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text('Pattern Fun'),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Choose your level',
-                  style: TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary)),
-              const SizedBox(height: 4),
-              const Text('12 rounds per level',
-                  style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
-              const SizedBox(height: 28),
-
-              _LevelButton(
-                label: 'Easy',
-                subtitle: 'AB patterns · 4 choices',
-                badge: 'Level 1',
-                bg: const Color(0xFFE4F5ED),
-                border: const Color(0xFF80D4A8),
-                labelColor: const Color(0xFF1A7A50),
-                badgeBg: const Color(0xFF80D4A8),
-                badgeText: const Color(0xFF0A4A28),
-                onTap: () => Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => PatternFunGame(level: 1, userId: userId))),
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF56CFB2), Color(0xFF3DAB7B)],
               ),
-              const SizedBox(height: 12),
-
-              _LevelButton(
-                label: 'Medium',
-                subtitle: 'ABC patterns · size variation',
-                badge: 'Level 2',
-                bg: const Color(0xFFFDF3E3),
-                border: const Color(0xFFF0C870),
-                labelColor: const Color(0xFFA06010),
-                badgeBg: const Color(0xFFF0C870),
-                badgeText: const Color(0xFF603808),
-                onTap: () => Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => PatternFunGame(level: 2, userId: userId))),
-              ),
-              const SizedBox(height: 12),
-
-              _LevelButton(
-                label: 'Hard',
-                subtitle: 'AABB patterns · two-slot missing',
-                badge: 'Level 3',
-                bg: const Color(0xFFFDECEA),
-                border: const Color(0xFFF0A090),
-                labelColor: const Color(0xFFA03020),
-                badgeBg: const Color(0xFFF0A090),
-                badgeText: const Color(0xFF601808),
-                onTap: () => Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => PatternFunGame(level: 3, userId: userId))),
-              ),
-
-              const Spacer(),
-              const Center(
-                child: Text(
-                  'Complete all levels to get your final score!',
-                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+          Positioned(top: -30, right: -30,
+            child: Container(width: 160, height: 160,
+              decoration: BoxDecoration(shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.08)))),
+          Positioned(bottom: 80, left: -20,
+            child: Container(width: 120, height: 120,
+              decoration: BoxDecoration(shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.06)))),
+
+          SafeArea(
+            child: Column(
+              children: [
+                AnimatedEntrance(
+                  slideAxis: Axis.vertical,
+                  slideDistance: -20,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 40, height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withOpacity(0.2),
+                            ),
+                            child: const Icon(Icons.arrow_back_ios_new_rounded,
+                                size: 18, color: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Text('Pattern Fun',
+                            style: GoogleFonts.poppins(
+                                fontSize: 24, fontWeight: FontWeight.w800,
+                                color: Colors.white)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                AnimatedEntrance(
+                  delay: const Duration(milliseconds: 80),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 76),
+                    child: Text('12 rounds per level',
+                        style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: Colors.white.withOpacity(0.75))),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: AnimatedEntrance(
+                            delay: const Duration(milliseconds: 160),
+                            child: _LevelCard(
+                              number: '01',
+                              label: 'Easy',
+                              subtitle: 'AB patterns · 4 choices',
+                              badge: 'Level 1',
+                              accentColor: const Color(0xFF56CFB2),
+                              onTap: () => Navigator.push(context,
+                                  MaterialPageRoute(builder: (_) =>
+                                      PatternFunGame(level: 1, userId: userId))),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: AnimatedEntrance(
+                            delay: const Duration(milliseconds: 260),
+                            child: _LevelCard(
+                              number: '02',
+                              label: 'Medium',
+                              subtitle: 'ABC patterns · size variation',
+                              badge: 'Level 2',
+                              accentColor: const Color(0xFF56CFB2),
+                              onTap: () => Navigator.push(context,
+                                  MaterialPageRoute(builder: (_) =>
+                                      PatternFunGame(level: 2, userId: userId))),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: AnimatedEntrance(
+                            delay: const Duration(milliseconds: 360),
+                            child: _LevelCard(
+                              number: '03',
+                              label: 'Hard',
+                              subtitle: 'AABB patterns · two-slot missing',
+                              badge: 'Level 3',
+                              accentColor: const Color(0xFF56CFB2),
+                              onTap: () => Navigator.push(context,
+                                  MaterialPageRoute(builder: (_) =>
+                                      PatternFunGame(level: 3, userId: userId))),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        AnimatedEntrance(
+                          delay: const Duration(milliseconds: 440),
+                          child: Text(
+                            'Complete all levels to get your final score!',
+                            style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.white.withOpacity(0.7)),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _LevelButton extends StatelessWidget {
+class _LevelCard extends StatelessWidget {
+  final String number;
   final String label;
   final String subtitle;
   final String badge;
-  final Color bg;
-  final Color border;
-  final Color labelColor;
-  final Color badgeBg;
-  final Color badgeText;
+  final Color accentColor;
   final VoidCallback onTap;
 
-  const _LevelButton({
-    required this.label, required this.subtitle, required this.badge,
-    required this.bg, required this.border, required this.labelColor,
-    required this.badgeBg, required this.badgeText, required this.onTap,
+  const _LevelCard({
+    required this.number,
+    required this.label,
+    required this.subtitle,
+    required this.badge,
+    required this.accentColor,
+    required this.onTap,
   });
 
   @override
@@ -111,41 +173,88 @@ class _LevelButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 64,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        constraints: const BoxConstraints(minHeight: 90),
         decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(AppTheme.buttonRadius),
-          border: Border.all(color: border, width: 1.5),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withOpacity(0.92),
+                    Colors.white.withOpacity(0.78),
+                  ],
+                ),
+                border: Border.all(
+                    color: Colors.white.withOpacity(0.85), width: 1.5),
+              ),
+              child: Row(
                 children: [
-                  Text(label,
-                      style: TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.bold,
-                          color: labelColor)),
-                  const SizedBox(height: 2),
-                  Text(subtitle,
-                      style: const TextStyle(
-                          fontSize: 11, color: AppTheme.textSecondary)),
+                  Text(number,
+                      style: GoogleFonts.poppins(
+                          fontSize: 40, fontWeight: FontWeight.w900,
+                          color: accentColor.withOpacity(0.25))),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(label,
+                            style: GoogleFonts.poppins(
+                                fontSize: 18, fontWeight: FontWeight.w700,
+                                color: AppTheme.textPrimary)),
+                        const SizedBox(height: 3),
+                        Text(subtitle,
+                            style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: AppTheme.textSecondary)),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          accentColor.withOpacity(0.8),
+                          accentColor,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: accentColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Text(badge,
+                        style: GoogleFonts.poppins(
+                            fontSize: 12, fontWeight: FontWeight.w700,
+                            color: Colors.white)),
+                  ),
                 ],
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                  color: badgeBg, borderRadius: BorderRadius.circular(20)),
-              child: Text(badge,
-                  style: TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.bold,
-                      color: badgeText)),
-            ),
-          ],
+          ),
         ),
       ),
     );

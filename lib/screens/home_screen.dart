@@ -1,7 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/user_profile.dart';
 import '../theme/app_theme.dart';
+import '../widgets/animated_entrance.dart';
 import 'progress_screen.dart';
 import 'facial_expression_screen.dart';
 import 'welcome_screen.dart';
@@ -43,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ── Games Tab ────────────────────────────────────────────────────────────────
+// ── Games Tab ─────────────────────────────────────────────────────────────────
 
 class _GamesTab extends StatelessWidget {
   final String name;
@@ -63,134 +66,200 @@ class _GamesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header ────────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 8, 0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+    return Column(
+      children: [
+        // ── Gradient header with curved bottom ────────────────────────
+        _CurvedHeader(name: name, onLogout: () => _logout(context)),
+
+        // ── Game cards ───────────────────────────────────────────────
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+            child: Column(
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hello, $name 👋',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: AppTheme.textSecondary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        "Let's play",
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.brandPurple,
-                          height: 1.1,
-                        ),
-                      ),
-                      const Text(
-                        'and learn!',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.brandPurple,
-                          height: 1.1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Logout button
-                IconButton(
-                  icon: const Icon(Icons.logout,
-                      color: AppTheme.textSecondary, size: 20),
-                  tooltip: 'Sign out',
-                  onPressed: () => _logout(context),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // ── Game cards — fill remaining space ─────────────────────────
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _GameCard(
-                    bg:          const Color(0xFFFDECEA),
-                    border:      const Color(0xFFF0A090),
-                    iconBg:      const Color(0xFFFFDADD),
-                    iconEmoji:   '😊',
-                    accentColor: const Color(0xFFE8604C),
-                    title:       'Mood Match',
-                    subtitle:    'Find the emotion',
+                AnimatedEntrance(
+                  delay: const Duration(milliseconds: 200),
+                  child: _GameCard(
+                    gradient: AppTheme.coralGradient,
+                    emoji: '😊',
+                    title: 'Mood Match',
+                    subtitle: 'Find the emotion',
                     onTap: () => Navigator.push(context,
                         MaterialPageRoute(
                             builder: (_) => MoodMatchLevelSelect(userId: uid))),
                   ),
-                  _GameCard(
-                    bg:          const Color(0xFFFDF3E3),
-                    border:      const Color(0xFFF0C870),
-                    iconBg:      const Color(0xFFFDECC8),
-                    iconEmoji:   '📖',
-                    accentColor: const Color(0xFFE8A030),
-                    title:       'Feeling Stories',
-                    subtitle:    'Choose the feeling',
+                ),
+                const SizedBox(height: 14),
+                AnimatedEntrance(
+                  delay: const Duration(milliseconds: 300),
+                  child: _GameCard(
+                    gradient: AppTheme.amberGradient,
+                    emoji: '📖',
+                    title: 'Feeling Stories',
+                    subtitle: 'Choose the feeling',
                     onTap: () => Navigator.push(context,
                         MaterialPageRoute(
                             builder: (_) =>
                                 FeelingStoriesLevelSelect(userId: uid))),
                   ),
-                  _GameCard(
-                    bg:          const Color(0xFFE4F5ED),
-                    border:      const Color(0xFF80D4A8),
-                    iconBg:      const Color(0xFFC8EFD8),
-                    iconEmoji:   '🧩',
-                    accentColor: const Color(0xFF3DAB7B),
-                    title:       'Pattern Fun',
-                    subtitle:    'Complete patterns',
+                ),
+                const SizedBox(height: 14),
+                AnimatedEntrance(
+                  delay: const Duration(milliseconds: 400),
+                  child: _GameCard(
+                    gradient: AppTheme.greenGradient,
+                    emoji: '🧩',
+                    title: 'Pattern Fun',
+                    subtitle: 'Complete patterns',
                     onTap: () => Navigator.push(context,
                         MaterialPageRoute(
                             builder: (_) =>
                                 PatternFunLevelSelect(userId: uid))),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+// ── Curved gradient header ────────────────────────────────────────────────────
+
+class _CurvedHeader extends StatelessWidget {
+  final String name;
+  final VoidCallback onLogout;
+  const _CurvedHeader({required this.name, required this.onLogout});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipPath(
+      clipper: _HeaderClipper(),
+      child: Container(
+        height: 190,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF7C6FF7), Color(0xFF5B4FCF)],
+          ),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
+              // Decorative small circles inside header
+              Positioned(top: 10, right: 30,
+                child: Container(width: 60, height: 60,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.08),
+                  ))),
+              Positioned(top: 40, right: 80,
+                child: Container(width: 30, height: 30,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.1),
+                  ))),
+              Positioned(bottom: 50, left: 20,
+                child: Container(width: 45, height: 45,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.07),
+                  ))),
+
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 12, 0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: AnimatedEntrance(
+                        delay: const Duration(milliseconds: 100),
+                        slideAxis: Axis.horizontal,
+                        slideDistance: -20,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Hello, $name 👋',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "Let's play\nand learn!",
+                              style: GoogleFonts.poppins(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                height: 1.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Container(
+                        width: 38, height: 38,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.18),
+                        ),
+                        child: Icon(Icons.logout_rounded,
+                            color: Colors.white.withOpacity(0.9), size: 18),
+                      ),
+                      tooltip: 'Sign out',
+                      onPressed: onLogout,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
+class _HeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height - 40);
+    path.quadraticBezierTo(
+      size.width / 2, size.height + 20,
+      size.width, size.height - 40,
+    );
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(_) => false;
+}
+
+// ── Game card ─────────────────────────────────────────────────────────────────
+
 class _GameCard extends StatelessWidget {
-  final Color bg;
-  final Color border;
-  final Color iconBg;
-  final String iconEmoji;
-  final Color accentColor;
+  final LinearGradient gradient;
+  final String emoji;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
 
   const _GameCard({
-    required this.bg,
-    required this.border,
-    required this.iconBg,
-    required this.iconEmoji,
-    required this.accentColor,
+    required this.gradient,
+    required this.emoji,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -201,79 +270,92 @@ class _GameCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
+        height: 88,
         decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-          border: Border.all(color: border, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: border.withValues(alpha: 0.25),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: AppTheme.cardShadow,
         ),
-        child: Row(
-          children: [
-            // Icon box
-            Container(
-              width: 56,
-              height: 56,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withOpacity(0.92),
+                    Colors.white.withOpacity(0.75),
+                  ],
+                ),
+                border: Border.all(
+                    color: Colors.white.withOpacity(0.8), width: 1.5),
               ),
-              child: Center(
-                child: Text(iconEmoji,
-                    style: const TextStyle(fontSize: 30)),
-              ),
-            ),
-            const SizedBox(width: 16),
-            // Text
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
+                  // Left gradient square with emoji
+                  Container(
+                    width: 56, height: 56,
+                    decoration: BoxDecoration(
+                      gradient: gradient,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: gradient.colors.last.withOpacity(0.35),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(emoji,
+                          style: const TextStyle(fontSize: 28)),
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
+                  const SizedBox(width: 16),
+
+                  // Text
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(title,
+                            style: GoogleFonts.poppins(
+                                fontSize: 15, fontWeight: FontWeight.w700,
+                                color: AppTheme.textPrimary)),
+                        const SizedBox(height: 3),
+                        Text(subtitle,
+                            style: GoogleFonts.poppins(
+                                fontSize: 12, color: AppTheme.textSecondary)),
+                      ],
                     ),
+                  ),
+
+                  // Arrow circle with gradient
+                  Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(
+                      gradient: gradient,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.arrow_forward_rounded,
+                        size: 18, color: Colors.white),
                   ),
                 ],
               ),
             ),
-            // Arrow
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: iconBg,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.arrow_forward_rounded,
-                  size: 18, color: accentColor),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ── Custom Bottom Navigation Bar ─────────────────────────────────────────────
+// ── Bottom Navigation ─────────────────────────────────────────────────────────
 
 class _EmoBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -284,14 +366,24 @@ class _EmoBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: AppTheme.background,
-        border: Border(top: BorderSide(color: Color(0xFFEEEEEE), width: 1)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(28),
+          topRight: Radius.circular(28),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF5B4FCF).withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, -6),
+          ),
+        ],
       ),
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 64,
+          height: 68,
           child: Row(
             children: [
               _NavItem(
@@ -308,7 +400,7 @@ class _EmoBottomNav extends StatelessWidget {
               ),
               _NavItem(
                 icon: Icons.face_retouching_natural,
-                label: 'Facial expression',
+                label: 'Camera',
                 active: currentIndex == 2,
                 onTap: () => onTap(2),
               ),
@@ -335,8 +427,6 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? AppTheme.brandPurple : const Color(0xFF9999AA);
-
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -344,14 +434,22 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 22, color: color),
+            if (active)
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFF7C6FF7), Color(0xFF5B4FCF)],
+                ).createShader(bounds),
+                child: Icon(icon, size: 24, color: Colors.white),
+              )
+            else
+              Icon(icon, size: 24, color: const Color(0xFF9999AA)),
             const SizedBox(height: 3),
             Text(
               label,
-              style: TextStyle(
+              style: GoogleFonts.poppins(
                 fontSize: 10,
-                fontWeight: active ? FontWeight.w600 : FontWeight.normal,
-                color: color,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+                color: active ? AppTheme.brandPurple : const Color(0xFF9999AA),
               ),
               textAlign: TextAlign.center,
               maxLines: 1,
@@ -360,10 +458,12 @@ class _NavItem extends StatelessWidget {
             const SizedBox(height: 4),
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width:  active ? 6 : 0,
+              width: active ? 6 : 0,
               height: active ? 6 : 0,
               decoration: BoxDecoration(
-                color: AppTheme.brandPurple,
+                gradient: active ? const LinearGradient(
+                  colors: [Color(0xFF7C6FF7), Color(0xFF5B4FCF)],
+                ) : null,
                 shape: BoxShape.circle,
               ),
             ),

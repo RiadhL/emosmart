@@ -1,15 +1,73 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../models/emotion.dart';
-import '../../../models/game_result.dart';
 import '../../../services/audio_service.dart';
-import '../../../services/game_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../final_score_screen.dart';
 
+// ── Photo entry ───────────────────────────────────────────────────────────────
+
+class _PhotoEntry {
+  final String assetPath;
+  final String emotionId;
+  const _PhotoEntry(this.assetPath, this.emotionId);
+}
+
+// ── Photo lists per level ─────────────────────────────────────────────────────
+
+const _levelPhotos = <int, List<_PhotoEntry>>{
+  1: [
+    _PhotoEntry('assets/images/Mood Match/easy/happy1.png',     'happy'),
+    _PhotoEntry('assets/images/Mood Match/easy/happy2.png',     'happy'),
+    _PhotoEntry('assets/images/Mood Match/easy/sad1.png',       'sad'),
+    _PhotoEntry('assets/images/Mood Match/easy/sad2.png',       'sad'),
+    _PhotoEntry('assets/images/Mood Match/easy/angry1.jpeg',    'angry'),
+    _PhotoEntry('assets/images/Mood Match/easy/angry2.jpg',     'angry'),
+    _PhotoEntry('assets/images/Mood Match/easy/scared1.png',    'fear'),
+    _PhotoEntry('assets/images/Mood Match/easy/scared2.png',    'fear'),
+    _PhotoEntry('assets/images/Mood Match/easy/disgust1.png',   'disgust'),
+    _PhotoEntry('assets/images/Mood Match/easy/disgust2.png',   'disgust'),
+    _PhotoEntry('assets/images/Mood Match/easy/surprised1.png', 'surprised'),
+    _PhotoEntry('assets/images/Mood Match/easy/surprised2.png', 'surprised'),
+  ],
+  2: [
+    _PhotoEntry('assets/images/Mood Match/medium/bored1.png',      'bored'),
+    _PhotoEntry('assets/images/Mood Match/medium/bored 2.png',     'bored'),
+    _PhotoEntry('assets/images/Mood Match/medium/confused1.png',   'confused'),
+    _PhotoEntry('assets/images/Mood Match/medium/confused2.png',   'confused'),
+    _PhotoEntry('assets/images/Mood Match/medium/calm1.png',       'calm'),
+    _PhotoEntry('assets/images/Mood Match/medium/calm2.png',       'calm'),
+    _PhotoEntry('assets/images/Mood Match/medium/nervous1.png',    'nervous'),
+    _PhotoEntry('assets/images/Mood Match/medium/nervous2.png',    'nervous'),
+    _PhotoEntry('assets/images/Mood Match/medium/frustrated1.png', 'frustrated'),
+    _PhotoEntry('assets/images/Mood Match/medium/frustrated2.png', 'frustrated'),
+    _PhotoEntry('assets/images/Mood Match/medium/tired1.png',      'tired'),
+    _PhotoEntry('assets/images/Mood Match/medium/tired2.png',      'tired'),
+  ],
+  3: [
+    _PhotoEntry('assets/images/Mood Match/hard/ashamed1.png',      'ashamed'),
+    _PhotoEntry('assets/images/Mood Match/hard/ashamed2.png',      'ashamed'),
+    _PhotoEntry('assets/images/Mood Match/hard/disappointed1.png', 'disappointed'),
+    _PhotoEntry('assets/images/Mood Match/hard/disappointed2.png', 'disappointed'),
+    _PhotoEntry('assets/images/Mood Match/hard/lonely1.png',       'lonely'),
+    _PhotoEntry('assets/images/Mood Match/hard/lonely2.png',       'lonely'),
+    _PhotoEntry('assets/images/Mood Match/hard/guilty1.png',       'guilty'),
+    _PhotoEntry('assets/images/Mood Match/hard/guilty2.png',       'guilty'),
+    _PhotoEntry('assets/images/Mood Match/hard/worried1.png',      'worried'),
+    _PhotoEntry('assets/images/Mood Match/hard/worried2.png',      'worried'),
+    _PhotoEntry('assets/images/Mood Match/hard/jealous1.jpg',      'jealous'),
+    _PhotoEntry('assets/images/Mood Match/hard/jealous2.png',      'jealous'),
+  ],
+};
+
+// ── Game ──────────────────────────────────────────────────────────────────────
+
 class MoodMatchGame extends StatefulWidget {
-  final int level;      // 1 = easy, 2 = medium, 3 = hard
+  final int level;
   final String userId;
   const MoodMatchGame({super.key, required this.level, required this.userId});
 
@@ -18,7 +76,7 @@ class MoodMatchGame extends StatefulWidget {
 }
 
 class _MoodMatchGameState extends State<MoodMatchGame>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const int totalRounds = 12;
 
   late final List<_Round> _rounds;
@@ -28,16 +86,15 @@ class _MoodMatchGameState extends State<MoodMatchGame>
   String? _selected;
   bool _answered = false;
 
-  // Stopwatch
   int _seconds = 0;
   Timer? _timer;
 
-  // Shake animation for wrong answer
   late final AnimationController _shakeCtrl;
-  late final Animation<double> _shakeAnim;
+  late final Animation<double>   _shakeAnim;
+  late final AnimationController _bounceCtrl;
+  late final Animation<double>   _bounceAnim;
 
   final _audio = AudioService();
-  final _gs    = GameService();
 
   @override
   void initState() {
@@ -49,31 +106,35 @@ class _MoodMatchGameState extends State<MoodMatchGame>
     _shakeAnim = Tween<double>(begin: 0, end: 1).animate(
         CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn));
 
+    _bounceCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 500));
+    _bounceAnim = Tween<double>(begin: 0, end: 1).animate(
+        CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut));
+
     _timer = Timer.periodic(const Duration(seconds: 1),
         (_) { if (mounted) setState(() => _seconds++); });
   }
 
   List<_Round> _buildRounds() {
+    final rng    = Random();
+    final photos = [..._levelPhotos[widget.level]!]..shuffle(rng);
     final emotions = Emotion.forGameLevel(widget.level);
-    final rng = Random();
-    final rounds = <_Round>[];
 
-    for (int i = 0; i < totalRounds; i++) {
-      final correct = emotions[i % emotions.length];
-      final pool = [...emotions]..remove(correct)..shuffle(rng);
+    return photos.map((photo) {
+      final correct = Emotion.fromId(photo.emotionId) ?? emotions.first;
+      final pool = [...emotions]
+        ..removeWhere((e) => e.id == correct.id)
+        ..shuffle(rng);
       final choices = [correct, ...pool.take(3)]..shuffle(rng);
-      rounds.add(_Round(correct: correct, choices: choices));
-    }
-    rounds.shuffle(rng);
-    return rounds;
+      return _Round(assetPath: photo.assetPath, correct: correct, choices: choices);
+    }).toList();
   }
 
   _Round get _current => _rounds[_roundIndex];
 
   String _fmt(int s) {
     final m = (s ~/ 60).toString().padLeft(2, '0');
-    final sec = (s % 60).toString().padLeft(2, '0');
-    return '$m:$sec';
+    return '$m:${(s % 60).toString().padLeft(2, '0')}';
   }
 
   Future<void> _answer(String id) async {
@@ -82,10 +143,11 @@ class _MoodMatchGameState extends State<MoodMatchGame>
     setState(() {
       _selected = id;
       _answered = true;
-      if (correct) _score++; else _errors++;
+      if (correct) { _score++; } else { _errors++; }
     });
 
     if (correct) {
+      _bounceCtrl.forward(from: 0);
       await _audio.playFeedback(correct: true);
     } else {
       _shakeCtrl.forward(from: 0);
@@ -95,6 +157,7 @@ class _MoodMatchGameState extends State<MoodMatchGame>
 
     if (_roundIndex < totalRounds - 1) {
       setState(() { _roundIndex++; _selected = null; _answered = false; });
+      _bounceCtrl.reset();
     } else {
       _finish();
     }
@@ -102,26 +165,40 @@ class _MoodMatchGameState extends State<MoodMatchGame>
 
   void _finish() {
     _timer?.cancel();
-    final result = GameResult(
-      gameId:      'mood_match',
-      level:       widget.level,
-      score:       _score,
-      maxScore:    totalRounds,
-      errors:      _errors,
-      starsEarned: _gs.starsForScore(_score / totalRounds),
-      timeTaken:   Duration(seconds: _seconds),
-      completedAt: DateTime.now(),
-    );
-    if (widget.userId.isNotEmpty) _gs.saveResult(widget.userId, result);
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final sessionId = DateTime.now().millisecondsSinceEpoch.toString();
+      final data = {
+        'score':       _score,
+        'errors':      _errors,
+        'duration':    _seconds,
+        'level':       widget.level,
+        'timestamp':   DateTime.now().millisecondsSinceEpoch,
+        'totalRounds': totalRounds,
+        'gameId':      'mood_match',
+      };
+      FirebaseDatabase.instance
+          .ref('users/${user.uid}/sessions/mood_match/$sessionId')
+          .set(data)
+          .then((_) => print('Session saved: $data'))
+          .catchError((e) => print('Error saving session: $e'));
+    } else {
+      print('No authenticated user — session not saved');
+    }
 
     Navigator.pushReplacement(context, MaterialPageRoute(
       builder: (_) => FinalScoreScreen(
-        gameTitle: 'Mood Match',
-        level:     widget.level,
-        score:     _score,
-        maxScore:  totalRounds,
-        timeSecs:  _seconds,
-        userId:    widget.userId,
+        gameTitle:        'Mood Match',
+        level:            widget.level,
+        score:            _score,
+        errors:           _errors,
+        maxScore:         totalRounds,
+        timeSecs:         _seconds,
+        userId:           widget.userId,
+        nextLevelBuilder: widget.level < 3
+            ? (_) => MoodMatchGame(level: widget.level + 1, userId: widget.userId)
+            : null,
       ),
     ));
   }
@@ -130,6 +207,7 @@ class _MoodMatchGameState extends State<MoodMatchGame>
   void dispose() {
     _timer?.cancel();
     _shakeCtrl.dispose();
+    _bounceCtrl.dispose();
     _audio.dispose();
     super.dispose();
   }
@@ -141,102 +219,96 @@ class _MoodMatchGameState extends State<MoodMatchGame>
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () { _timer?.cancel(); Navigator.pop(context); },
-        ),
-        title: Text('Round $round / $totalRounds',
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Row(
-                children: [
-                  const Icon(Icons.timer_outlined, size: 16,
-                      color: AppTheme.textSecondary),
-                  const SizedBox(width: 4),
-                  Text(_fmt(_seconds),
-                      style: const TextStyle(
-                          fontSize: 14, color: AppTheme.textSecondary,
-                          fontWeight: FontWeight.w500)),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+      body: SafeArea(
         child: Column(
           children: [
-            // Progress bar
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
+            // ── Top bar ──────────────────────────────────────────────────
+            _GameTopBar(
+              round: round,
+              totalRounds: totalRounds,
+              timeStr: _fmt(_seconds),
+              score: _score,
+              accentGradient: AppTheme.coralGradient,
+              onBack: () { _timer?.cancel(); Navigator.pop(context); },
+            ),
+
+            // ── Progress bar ─────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _GradientProgressBar(
                 value: progress,
-                minHeight: 5,
-                backgroundColor: const Color(0xFFEEEEEE),
-                valueColor: const AlwaysStoppedAnimation(AppTheme.brandPurple),
+                gradient: AppTheme.coralGradient,
               ),
             ),
             const SizedBox(height: 12),
 
-            // Score bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppTheme.brandLightPurple,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Text('Level score',
-                      style: TextStyle(fontSize: 13, color: AppTheme.brandPurple)),
-                  const Spacer(),
-                  Text('$_score / $totalRounds',
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold,
-                          color: AppTheme.brandPurple)),
-                ],
+            // ── Score chip ───────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _ScoreChip(
+                score: _score,
+                total: totalRounds,
+                gradient: AppTheme.coralGradient,
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Face placeholder (replaces emoji)
-            _FaceCard(emotion: _current.correct),
-            const SizedBox(height: 12),
-
-            const Text('How does this child feel?',
-                style: TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary)),
             const SizedBox(height: 14),
 
-            // 2×2 choice grid
+            // ── Photo card ───────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: AnimatedBuilder(
+                animation: _bounceAnim,
+                builder: (_, child) => Transform.scale(
+                  scale: 1.0 + sin(_bounceAnim.value * pi) * 0.04,
+                  child: child,
+                ),
+                child: _PhotoCard(
+                  assetPath: _current.assetPath,
+                  accentColor: const Color(0xFFFF6B6B),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text('How does this child feel?',
+                  style: GoogleFonts.poppins(
+                      fontSize: 16, fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary)),
+            ),
+            const SizedBox(height: 12),
+
+            // ── Choice grid ──────────────────────────────────────────────
             Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 2.2,
-                children: _current.choices.map((e) {
-                  return _ChoiceChip(
-                    emotion: e,
-                    answered: _answered,
-                    isCorrect: e.id == _current.correct.id,
-                    isSelected: _selected == e.id,
-                    shakeAnim: (e.id == _selected && _selected != _current.correct.id)
-                        ? _shakeAnim : null,
-                    onTap: () => _answer(e.id),
-                  );
-                }).toList(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: GridView.count(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 2.2,
+                  children: _current.choices.map((e) {
+                    return _ChoiceChip(
+                      emotion: e,
+                      answered: _answered,
+                      isCorrect: e.id == _current.correct.id,
+                      isSelected: _selected == e.id,
+                      shakeAnim: (e.id == _selected && _selected != _current.correct.id)
+                          ? _shakeAnim : null,
+                      onTap: () => _answer(e.id),
+                    );
+                  }).toList(),
+                ),
               ),
             ),
 
-            // Feedback banner
-            if (_answered) _FeedbackBanner(correct: _selected == _current.correct.id),
+            // ── Feedback banner ──────────────────────────────────────────
+            if (_answered)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: _FeedbackBanner(correct: _selected == _current.correct.id),
+              ),
           ],
         ),
       ),
@@ -244,293 +316,220 @@ class _MoodMatchGameState extends State<MoodMatchGame>
   }
 }
 
-// ── Face card (photo placeholder) ────────────────────────────────────────────
-// Replace Image.asset() with real AI-generated child photos
+// ── Shared game top bar ───────────────────────────────────────────────────────
 
-class _FaceCard extends StatelessWidget {
-  final Emotion emotion;
-  const _FaceCard({required this.emotion});
+class _GameTopBar extends StatelessWidget {
+  final int round;
+  final int totalRounds;
+  final String timeStr;
+  final int score;
+  final LinearGradient accentGradient;
+  final VoidCallback onBack;
+
+  const _GameTopBar({
+    required this.round,
+    required this.totalRounds,
+    required this.timeStr,
+    required this.score,
+    required this.accentGradient,
+    required this.onBack,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 160,
-      decoration: BoxDecoration(
-        color: _cardBg(emotion.id),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.brandPurple.withValues(alpha: 0.18), width: 1.5),
-      ),
-      child: Stack(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Row(
         children: [
-          // Corner brackets
-          ..._corners(AppTheme.brandPurple),
-
-          // Face illustration
-          Center(
-            child: SizedBox(
-              width: 100,
-              height: 100,
-              child: CustomPaint(painter: _FacePainter(emotion.id)),
+          GestureDetector(
+            onTap: onBack,
+            child: Container(
+              width: 38, height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                boxShadow: AppTheme.cardShadow,
+              ),
+              child: const Icon(Icons.arrow_back_ios_new_rounded,
+                  size: 16, color: AppTheme.textPrimary),
             ),
           ),
-
-          // Emotion label badge (top-left — shows therapist where to place real photo)
-          Positioned(
-            top: 10,
-            left: 10,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppTheme.brandPurple.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                emotion.name,
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.brandPurple,
-                ),
-              ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text('Round $round / $totalRounds',
+                style: GoogleFonts.poppins(
+                    fontSize: 15, fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary)),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: AppTheme.cardShadow,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.timer_outlined, size: 14,
+                    color: AppTheme.textSecondary),
+                const SizedBox(width: 4),
+                Text(timeStr,
+                    style: GoogleFonts.poppins(
+                        fontSize: 13, fontWeight: FontWeight.w600,
+                        color: AppTheme.textSecondary)),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  static Color _cardBg(String id) {
-    const map = {
-      'happy':       Color(0xFFFFF9C4),
-      'sad':         Color(0xFFBBDEFB),
-      'angry':       Color(0xFFFFCDD2),
-      'fear':        Color(0xFFE1BEE7),
-      'surprised':   Color(0xFFB3E5FC),
-      'disgust':     Color(0xFFC8E6C9),
-      'frustrated':  Color(0xFFFFCCBC),
-      'worried':     Color(0xFFE3F2FD),
-      'calm':        Color(0xFFE8F5E9),
-      'bored':       Color(0xFFF5F5F5),
-      'tired':       Color(0xFFECEFF1),
-      'confused':    Color(0xFFFFF3E0),
-      'guilty':      Color(0xFFEDE7F6),
-      'nervous':     Color(0xFFFCE4EC),
-    };
-    return map[id] ?? const Color(0xFFEEEEEE);
+// ── Gradient progress bar ─────────────────────────────────────────────────────
+
+class _GradientProgressBar extends StatelessWidget {
+  final double value;
+  final LinearGradient gradient;
+
+  const _GradientProgressBar({required this.value, required this.gradient});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 8,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: AppTheme.border,
+      ),
+      child: FractionallySizedBox(
+        alignment: Alignment.centerLeft,
+        widthFactor: value,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            gradient: gradient,
+            boxShadow: [
+              BoxShadow(
+                color: gradient.colors.last.withOpacity(0.4),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Score chip ────────────────────────────────────────────────────────────────
+
+class _ScoreChip extends StatelessWidget {
+  final int score;
+  final int total;
+  final LinearGradient gradient;
+
+  const _ScoreChip({
+    required this.score,
+    required this.total,
+    required this.gradient,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: Colors.white,
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Row(
+        children: [
+          Text('Level score',
+              style: GoogleFonts.poppins(
+                  fontSize: 13, color: AppTheme.textSecondary)),
+          const Spacer(),
+          ShaderMask(
+            shaderCallback: (b) => gradient.createShader(b),
+            child: Text('$score / $total',
+                style: GoogleFonts.poppins(
+                    fontSize: 16, fontWeight: FontWeight.w800,
+                    color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Photo card ────────────────────────────────────────────────────────────────
+
+class _PhotoCard extends StatelessWidget {
+  final String assetPath;
+  final Color accentColor;
+  const _PhotoCard({required this.assetPath, required this.accentColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            Image.asset(
+              assetPath,
+              width: double.infinity,
+              height: 190,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stack) => Container(
+                width: double.infinity,
+                height: 190,
+                color: const Color(0xFFEEEEEE),
+                child: const Icon(Icons.image_not_supported_outlined,
+                    size: 48, color: Color(0xFFBBBBBB)),
+              ),
+            ),
+            // Corner brackets
+            ..._cornerBrackets(accentColor),
+          ],
+        ),
+      ),
+    );
   }
 
-  static List<Widget> _corners(Color c) {
-    const t = 2.5; const sz = 18.0; const pad = 10.0;
+  List<Widget> _cornerBrackets(Color c) {
+    const t = 3.0; const sz = 24.0; const pad = 10.0;
     Widget b(bool left, bool top) => Positioned(
       top:    top  ? pad : null,
       bottom: !top ? pad : null,
       left:   left ? pad : null,
-      right:  !left? pad : null,
-      child: SizedBox(width: sz, height: sz,
-          child: CustomPaint(painter: _CornerPainter(left, top, c, t))),
-    );
-    return [b(true,true), b(false,true), b(true,false), b(false,false)];
-  }
-}
-
-// ── Face CustomPainter ────────────────────────────────────────────────────────
-
-class _FacePainter extends CustomPainter {
-  final String emotionId;
-  const _FacePainter(this.emotionId);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final r  = size.width * 0.42;
-
-    // Head
-    canvas.drawCircle(
-      Offset(cx, cy),
-      r,
-      Paint()..color = const Color(0xFFFFC87C),
-    );
-    canvas.drawCircle(
-      Offset(cx, cy),
-      r,
-      Paint()
-        ..color = const Color(0xFF000000).withValues(alpha: 0.08)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
-    );
-
-    final eyePaint = Paint()..color = const Color(0xFF333333);
-    final eyeY     = cy - size.height * 0.08;
-    final eyeX     = size.width  * 0.14;
-    final eyeR     = _eyesWide ? size.width * 0.065 : size.width * 0.047;
-
-    // Eyes
-    if (emotionId == 'tired') {
-      // Half-closed: draw arcs
-      final p = Paint()
-        ..color = const Color(0xFF333333)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5
-        ..strokeCap = StrokeCap.round;
-      for (final dx in [-eyeX, eyeX]) {
-        canvas.drawArc(
-          Rect.fromCircle(center: Offset(cx + dx, eyeY), radius: eyeR),
-          0, pi, false, p,
-        );
-      }
-    } else {
-      canvas.drawCircle(Offset(cx - eyeX, eyeY), eyeR, eyePaint);
-      canvas.drawCircle(Offset(cx + eyeX, eyeY), eyeR, eyePaint);
-      // Pupils
-      canvas.drawCircle(Offset(cx - eyeX + 1, eyeY + 1), eyeR * 0.45,
-          Paint()..color = Colors.white.withValues(alpha: 0.6));
-      canvas.drawCircle(Offset(cx + eyeX + 1, eyeY + 1), eyeR * 0.45,
-          Paint()..color = Colors.white.withValues(alpha: 0.6));
-    }
-
-    // Eyebrows
-    _drawEyebrows(canvas, size, cx, eyeY, eyeX);
-
-    // Mouth
-    _drawMouth(canvas, size, cx, cy);
-  }
-
-  void _drawEyebrows(Canvas c, Size s, double cx, double eyeY, double eyeX) {
-    final p = Paint()
-      ..color = const Color(0xFF555555)
-      ..strokeWidth = 2.2
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    final browY = eyeY - s.height * 0.115;
-    final w     = s.width * 0.07;
-
-    double tiltL = 0; // positive = inner end higher (sad), negative = inner end lower (angry)
-    double raise = 0; // move both brows up (surprised)
-
-    switch (emotionId) {
-      case 'angry':
-      case 'frustrated':
-      case 'jealous':
-      case 'suspicious':
-        tiltL = -1.0;
-      case 'sad':
-      case 'worried':
-      case 'nervous':
-      case 'lonely':
-      case 'guilty':
-      case 'ashamed':
-        tiltL = 1.0;
-      case 'surprised':
-      case 'fear':
-        raise = s.height * 0.04;
-    }
-
-    final tiltDy = tiltL * s.height * 0.028;
-    final by = browY - raise;
-
-    // Left brow: from outer→inner
-    c.drawLine(
-      Offset(cx - eyeX - w, by + tiltDy),
-      Offset(cx - eyeX + w, by - tiltDy),
-      p,
-    );
-    // Right brow: inner→outer
-    c.drawLine(
-      Offset(cx + eyeX - w, by - tiltDy),
-      Offset(cx + eyeX + w, by + tiltDy),
-      p,
-    );
-  }
-
-  void _drawMouth(Canvas c, Size s, double cx, double cy) {
-    final mouthY = cy + s.height * 0.13;
-    final mouthW = s.width * 0.16;
-
-    final p = Paint()
-      ..color = const Color(0xFF555555)
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    if (emotionId == 'surprised' || emotionId == 'fear') {
-      // Open oval mouth
-      c.drawOval(
-        Rect.fromCenter(
-          center: Offset(cx, mouthY + s.height * 0.02),
-          width:  mouthW * 0.9,
-          height: mouthW * 0.7,
+      right:  !left ? pad : null,
+      child: SizedBox(
+        width: sz, height: sz,
+        child: CustomPaint(
+          painter: _CornerPainter(left: left, top: top, color: c, thickness: t),
         ),
-        Paint()..color = const Color(0xFF555555),
-      );
-      return;
-    }
-
-    final curve = _mouthCurve * s.height * 0.07;
-    final path  = Path()
-      ..moveTo(cx - mouthW, mouthY)
-      ..quadraticBezierTo(cx, mouthY + curve, cx + mouthW, mouthY);
-    c.drawPath(path, p);
-
-    if (emotionId == 'happy') {
-      // Dimple lines
-      final dp = Paint()
-        ..color = const Color(0xFF555555).withValues(alpha: 0.4)
-        ..strokeWidth = 1.5
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-      c.drawLine(
-        Offset(cx - mouthW - s.width * 0.02, mouthY - s.height * 0.01),
-        Offset(cx - mouthW,                  mouthY + s.height * 0.025),
-        dp,
-      );
-      c.drawLine(
-        Offset(cx + mouthW + s.width * 0.02, mouthY - s.height * 0.01),
-        Offset(cx + mouthW,                  mouthY + s.height * 0.025),
-        dp,
-      );
-    }
+      ),
+    );
+    return [b(true, true), b(false, true), b(true, false), b(false, false)];
   }
-
-  double get _mouthCurve {
-    switch (emotionId) {
-      case 'happy':                                       return  1.0;
-      case 'sad':
-      case 'lonely':
-      case 'disappointed': return -1.0;
-      case 'angry':
-      case 'frustrated':
-      case 'jealous':      return -0.7;
-      case 'worried':
-      case 'nervous':
-      case 'guilty':
-      case 'ashamed':      return -0.5;
-      case 'calm':         return  0.3;
-      case 'bored':        return  0.05;
-      case 'suspicious':   return -0.3;
-      default:             return  0.1;
-    }
-  }
-
-  bool get _eyesWide {
-    return emotionId == 'surprised' || emotionId == 'fear';
-  }
-
-  @override
-  bool shouldRepaint(_FacePainter old) => old.emotionId != emotionId;
 }
-
-// ── Corner bracket painter ────────────────────────────────────────────────────
 
 class _CornerPainter extends CustomPainter {
-  final bool left;
-  final bool top;
+  final bool  left, top;
   final Color color;
   final double thickness;
-
-  const _CornerPainter(this.left, this.top, this.color, this.thickness);
+  const _CornerPainter({
+    required this.left, required this.top,
+    required this.color, required this.thickness,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -539,12 +538,10 @@ class _CornerPainter extends CustomPainter {
       ..strokeWidth = thickness
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.square;
-
-    final x = left ? 0.0 : size.width;
-    final y = top  ? 0.0 : size.height;
-    final dx = left ? size.width : -size.width;
+    final x  = left ? 0.0 : size.width;
+    final y  = top  ? 0.0 : size.height;
+    final dx = left ? size.width  : -size.width;
     final dy = top  ? size.height : -size.height;
-
     canvas.drawLine(Offset(x, y), Offset(x + dx, y), p);
     canvas.drawLine(Offset(x, y), Offset(x, y + dy), p);
   }
@@ -574,27 +571,37 @@ class _ChoiceChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color bg     = Colors.white;
-    Color border = const Color(0xFFEEEEEE);
-
-    if (answered) {
-      if (isCorrect) {
-        bg     = AppTheme.greenLight;
-        border = AppTheme.green;
-      } else if (isSelected) {
-        bg     = AppTheme.coralLight;
-        border = AppTheme.coral;
-      }
-    }
-
     Widget chip = GestureDetector(
       onTap: answered ? null : onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: border, width: 1.5),
+          borderRadius: BorderRadius.circular(16),
+          gradient: answered && isCorrect
+              ? const LinearGradient(
+                  colors: [Color(0xFF56CFB2), Color(0xFF3DAB7B)])
+              : answered && isSelected
+                  ? const LinearGradient(
+                      colors: [Color(0xFFFF6B6B), Color(0xFFE8604C)])
+                  : LinearGradient(colors: [
+                      Colors.white,
+                      Colors.white.withOpacity(0.95)
+                    ]),
+          border: Border.all(
+            color: answered && isCorrect
+                ? AppTheme.green
+                : answered && isSelected
+                    ? AppTheme.coral
+                    : const Color(0xFFEEEEEE),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF5B4FCF).withOpacity(0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -604,15 +611,18 @@ class _ChoiceChip extends StatelessWidget {
             Flexible(
               child: Text(
                 emotion.name,
-                style: const TextStyle(
-                    fontSize: 10, fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary),
+                style: GoogleFonts.poppins(
+                  fontSize: 10, fontWeight: FontWeight.w600,
+                  color: answered && (isCorrect || isSelected)
+                      ? Colors.white
+                      : AppTheme.textPrimary,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             if (answered && isCorrect) ...[
               const SizedBox(width: 4),
-              const Icon(Icons.check_circle, size: 14, color: AppTheme.green),
+              const Icon(Icons.check_circle, size: 14, color: Colors.white),
             ],
           ],
         ),
@@ -641,23 +651,29 @@ class _FeedbackBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
+    return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: correct ? AppTheme.greenLight : AppTheme.coralLight,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: correct ? AppTheme.green : AppTheme.coral, width: 1),
+        borderRadius: BorderRadius.circular(16),
+        gradient: correct
+            ? const LinearGradient(
+                colors: [Color(0xFF56CFB2), Color(0xFF3DAB7B)])
+            : const LinearGradient(
+                colors: [Color(0xFFFF6B6B), Color(0xFFE8604C)]),
+        boxShadow: [
+          BoxShadow(
+            color: (correct ? AppTheme.green : AppTheme.coral).withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Text(
         correct ? "You're doing great! 🌟" : "Try again! 🔄",
         textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-          color: correct ? const Color(0xFF1A7A50) : AppTheme.coral,
+        style: GoogleFonts.poppins(
+          fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white,
         ),
       ),
     );
@@ -665,7 +681,8 @@ class _FeedbackBanner extends StatelessWidget {
 }
 
 class _Round {
+  final String assetPath;
   final Emotion correct;
   final List<Emotion> choices;
-  _Round({required this.correct, required this.choices});
+  _Round({required this.assetPath, required this.correct, required this.choices});
 }

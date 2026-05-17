@@ -29,7 +29,12 @@ class AuthService {
     );
     final profile = UserProfile(uid: cred.user!.uid, name: name, age: age);
     await _db.child('users/${cred.user!.uid}').set(profile.toMap());
+    await cred.user!.sendEmailVerification();
     return profile;
+  }
+
+  Future<void> sendEmailVerification() async {
+    await _auth.currentUser?.sendEmailVerification();
   }
 
   Future<void> signOut() => _auth.signOut();

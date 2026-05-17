@@ -1,19 +1,7 @@
-import 'dart:math' show pow;
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
-
-/// Exponential ease-out curve (CSS equivalent: cubic-bezier(0.16,1,0.3,1))
-class _EaseOutExpo extends Curve {
-  const _EaseOutExpo();
-  @override
-  double transform(double t) {
-    if (t == 0) return 0;
-    if (t == 1) return 1;
-    return 1.0 - pow(2.0, -10.0 * t).toDouble();
-  }
-}
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -22,192 +10,289 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen>
-    with TickerProviderStateMixin {
-  late final AnimationController _lineCtrl;
-  late final AnimationController _titleCtrl;
-  late final AnimationController _taglineCtrl;
-  late final AnimationController _buttonsCtrl;
-
-  late final Animation<double> _lineFade;
-  late final Animation<double> _letterSpacing; // -12 → 0
-  late final Animation<double> _titleFade;
-  late final Animation<double> _taglineFade;
-  late final Animation<Offset> _buttonsSlide;
-  late final Animation<double> _buttonsFade;
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _lineOpacity;
+  late Animation<double> _titleOpacity;
+  late Animation<double> _letterSpacing;
+  late Animation<double> _taglineOpacity;
+  late Animation<Offset> _buttonsSlide;
+  late Animation<double> _buttonsOpacity;
 
   @override
   void initState() {
     super.initState();
+    _controller = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 2000));
 
-    _lineCtrl    = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
-    _titleCtrl   = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-    _taglineCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
-    _buttonsCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 450));
+    _lineOpacity = Tween<double>(begin: 0, end: 1).animate(
+        CurvedAnimation(parent: _controller,
+            curve: const Interval(0.0, 0.2, curve: Curves.easeOutCubic)));
 
-    _lineFade = CurvedAnimation(parent: _lineCtrl, curve: Curves.easeIn);
+    _titleOpacity = Tween<double>(begin: 0, end: 1).animate(
+        CurvedAnimation(parent: _controller,
+            curve: const Interval(0.15, 0.55, curve: Curves.easeOutCubic)));
 
-    _letterSpacing = Tween<double>(begin: -12.0, end: 0.0)
-        .animate(CurvedAnimation(parent: _titleCtrl, curve: const _EaseOutExpo()));
-    _titleFade = Tween<double>(begin: 0.0, end: 1.0)
-        .animate(CurvedAnimation(parent: _titleCtrl, curve: Curves.easeIn));
+    _letterSpacing = Tween<double>(begin: -15.0, end: 1.5).animate(
+        CurvedAnimation(parent: _controller,
+            curve: const Interval(0.15, 0.65, curve: Curves.easeOutExpo)));
 
-    _taglineFade = CurvedAnimation(parent: _taglineCtrl, curve: Curves.easeIn);
+    _taglineOpacity = Tween<double>(begin: 0, end: 1).animate(
+        CurvedAnimation(parent: _controller,
+            curve: const Interval(0.45, 0.75, curve: Curves.easeOutCubic)));
 
-    _buttonsSlide = Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _buttonsCtrl, curve: const _EaseOutExpo()));
-    _buttonsFade = CurvedAnimation(parent: _buttonsCtrl, curve: Curves.easeIn);
+    _buttonsSlide =
+        Tween<Offset>(begin: const Offset(0, 0.4), end: Offset.zero).animate(
+            CurvedAnimation(parent: _controller,
+                curve: const Interval(0.65, 1.0, curve: Curves.easeOutCubic)));
 
-    // Stagger: line 0ms, title 200ms, tagline 600ms, buttons 800ms
-    _lineCtrl.forward();
-    Future.delayed(const Duration(milliseconds: 200), () { if (mounted) _titleCtrl.forward(); });
-    Future.delayed(const Duration(milliseconds: 600), () { if (mounted) _taglineCtrl.forward(); });
-    Future.delayed(const Duration(milliseconds: 800), () { if (mounted) _buttonsCtrl.forward(); });
+    _buttonsOpacity = Tween<double>(begin: 0, end: 1).animate(
+        CurvedAnimation(parent: _controller,
+            curve: const Interval(0.65, 1.0)));
+
+    _controller.forward();
   }
 
   @override
   void dispose() {
-    _lineCtrl.dispose();
-    _titleCtrl.dispose();
-    _taglineCtrl.dispose();
-    _buttonsCtrl.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            children: [
-              const Spacer(flex: 3),
+      body: Stack(
+        children: [
+          // ── Background gradient ──────────────────────────────────────
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFFEEE9FF), Color(0xFFF8F7FF)],
+              ),
+            ),
+          ),
 
-              // ── Thin purple line ─────────────────────────────────────────
-              FadeTransition(
-                opacity: _lineFade,
-                child: Container(
-                  width: 40,
-                  height: 2.5,
-                  decoration: BoxDecoration(
-                    color: AppTheme.brandPurple,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+          // ── Decorative circles ───────────────────────────────────────
+          Positioned(
+            top: -40, right: -40,
+            child: Container(
+              width: 200, height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFFA78BFA).withOpacity(0.15),
+                    const Color(0xFF7C6FF7).withOpacity(0.15),
+                  ],
                 ),
               ),
+            ),
+          ),
+          Positioned(
+            bottom: 80, left: -30,
+            child: Container(
+              width: 150, height: 150,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFFFF6B9D).withOpacity(0.10),
+                    const Color(0xFFD4538A).withOpacity(0.10),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: MediaQuery.of(context).size.height * 0.42,
+            right: 40,
+            child: Container(
+              width: 100, height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF56CFB2).withOpacity(0.08),
+                    const Color(0xFF3DAB7B).withOpacity(0.08),
+                  ],
+                ),
+              ),
+            ),
+          ),
 
-              const SizedBox(height: 28),
+          // ── Content ──────────────────────────────────────────────────
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Spacer(flex: 2),
 
-              // ── Title with letter-spread ─────────────────────────────────
-              FadeTransition(
-                opacity: _titleFade,
-                child: AnimatedBuilder(
-                  animation: _letterSpacing,
-                  builder: (_, __) => RichText(
-                    textAlign: TextAlign.center,
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'Emo',
-                          style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.brandPurple,
-                            letterSpacing: _letterSpacing.value,
-                          ),
+                  // Accent line
+                  FadeTransition(
+                    opacity: _lineOpacity,
+                    child: Container(
+                      width: 50, height: 3,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(2),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF7C6FF7), Color(0xFF5B4FCF)],
                         ),
-                        TextSpan(
-                          text: 'Smart',
-                          style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
-                            letterSpacing: _letterSpacing.value,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ),
+                  const SizedBox(height: 24),
 
-              const SizedBox(height: 16),
-
-              // ── Tagline ──────────────────────────────────────────────────
-              FadeTransition(
-                opacity: _taglineFade,
-                child: const Text(
-                  'Learn emotions through play',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textSecondary,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ),
-
-              const Spacer(flex: 3),
-
-              // ── Buttons ──────────────────────────────────────────────────
-              FadeTransition(
-                opacity: _buttonsFade,
-                child: SlideTransition(
-                  position: _buttonsSlide,
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (_) => const SignupScreen()),
+                  // Animated title
+                  AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: _titleOpacity.value,
+                        child: RichText(
+                          textAlign: TextAlign.center,
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: 'Emo',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 42,
+                                  fontWeight: FontWeight.w800,
+                                  foreground: Paint()
+                                    ..shader = const LinearGradient(
+                                      colors: [Color(0xFF7C6FF7), Color(0xFF5B4FCF)],
+                                    ).createShader(
+                                      const Rect.fromLTWH(0, 0, 120, 60),
+                                    ),
+                                  letterSpacing: _letterSpacing.value,
+                                ),
+                              ),
+                              TextSpan(
+                                text: 'Smart',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 42,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF1A1A2E),
+                                  letterSpacing: _letterSpacing.value,
+                                ),
+                              ),
+                            ],
                           ),
-                          child: const Text("I'm new here"),
                         ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Tagline
+                  FadeTransition(
+                    opacity: _taglineOpacity,
+                    child: Text(
+                      'Learn emotions through play',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF6B6B8A),
                       ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (_) => const LoginScreen()),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: AppTheme.brandLightPurple,
-                            foregroundColor: AppTheme.brandPurple,
-                            side: const BorderSide(color: Color(0xFF8B80E0), width: 1.5),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.buttonRadius),
+                    ),
+                  ),
+
+                  const Spacer(flex: 2),
+
+                  // Buttons
+                  SlideTransition(
+                    position: _buttonsSlide,
+                    child: FadeTransition(
+                      opacity: _buttonsOpacity,
+                      child: Column(
+                        children: [
+                          // "I'm new here" — gradient button
+                          GestureDetector(
+                            onTap: () => Navigator.pushReplacement(context,
+                                MaterialPageRoute(builder: (_) => const SignupScreen())),
+                            child: Container(
+                              width: double.infinity,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(18),
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [Color(0xFF7C6FF7), Color(0xFF5B4FCF)],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF5B4FCF).withOpacity(0.4),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  "I'm new here",
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                          child: const Text('I already have an account'),
-                        ),
+                          const SizedBox(height: 14),
+
+                          // "I already have an account" — glass style
+                          GestureDetector(
+                            onTap: () => Navigator.pushReplacement(context,
+                                MaterialPageRoute(builder: (_) => const LoginScreen())),
+                            child: Container(
+                              width: double.infinity,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(18),
+                                color: Colors.white.withOpacity(0.9),
+                                border: Border.all(
+                                    color: const Color(0xFFA78BFA), width: 1.5),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'I already have an account',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF5B4FCF),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
+
+                  const SizedBox(height: 28),
+                  FadeTransition(
+                    opacity: _buttonsOpacity,
+                    child: Text(
+                      'EmoSmart · Made for curious kids',
+                      style: GoogleFonts.poppins(
+                          fontSize: 11, color: const Color(0xFF9999AA)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ),
-
-              const SizedBox(height: 28),
-
-              // ── Footer ───────────────────────────────────────────────────
-              FadeTransition(
-                opacity: _buttonsFade,
-                child: const Text(
-                  'EmoSmart · Made for curious kids',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF9999AA)),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

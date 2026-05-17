@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+c:\Users\MED\OneDrive\Imagens\Screenshots 1\2026-04-30.pngimport 'package:flutter/material.dart';
 
 /// Wraps a child with a pop-in scale + fade animation.
 /// Use as a wrapper when you want to celebrate a correct answer or new result.

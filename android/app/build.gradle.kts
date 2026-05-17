@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         applicationId = "com.emosmart.app"
-        minSdk = flutter.minSdkVersion  // Firebase requires at least 21
+        minSdk = flutter.minSdkVersion  // Firebase, ML Kit and camera all require at least 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
